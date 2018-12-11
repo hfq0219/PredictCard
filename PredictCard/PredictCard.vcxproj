@@ -78,6 +78,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="count.h" />
     <ClInclude Include="PredictCard.h" />
   </ItemGroup>
   <ItemGroup>
