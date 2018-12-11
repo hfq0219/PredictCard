@@ -38,6 +38,7 @@ void scan(int &suit, int &rank){
 		if (flag == 0){
 			Mat m = imread("card.jpg", 0);
 			int result = splitCard(m, 1, "num", "flag");
+			waitKey();
 			if (result == 0){
 				//cout << "截取成功，按任意键进行预测，ctrl-c 退出..." << endl;
 				//waitKey();

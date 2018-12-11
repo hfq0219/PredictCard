@@ -105,14 +105,4 @@ void   D24(int v0, int v1, int v2, int v3)          // 穷举法求24点
 	else
 		printf("\\n共找到算式 %d 条.", count);
 }
-
 #endif
-/*
-void main()
-{
-	int v0 = 3, v1 = 10, v2 = 4, v3 = 13;
-	printf("输入四个整数: ");
-	// scanf("%d %d %d %d",&v0,&v1,&v2,&v3);
-	D24(v0, v1, v2, v3);
-
-}*/
