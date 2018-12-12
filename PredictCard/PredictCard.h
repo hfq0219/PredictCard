@@ -11,6 +11,7 @@ using namespace cv::ml;
 
 void train_pixel(); //train the knn model for classifying.
 int splitCard(Mat &m, int i, string num_, string flag_); //split the card to detect the number and flag.
+int findCardLine(Mat &m);
 int findCard(Mat &m); //find the card region which read from camera.
 int predictNum(Mat &m); //predict the num of card.
 int predictFlag(Mat &m); //predict the flag of card.
@@ -114,6 +115,25 @@ void train_pixel()
 	FlagModel->setIsClassifier(true);
 	FlagModel->train(tFlag);
 	FlagModel->save("./flag_knn_pixel.yml");
+}
+
+int findCardLine(Mat &m){
+	Mat gray,bin;
+	cvtColor(m, gray, COLOR_BGR2GRAY);
+	imshow("gray", gray);
+	//################################################
+	threshold(gray, bin, 80, 255, THRESH_BINARY);  //---对光照和环境要求较高，阈值设置合适值-----------------
+	//################################################
+	vector<Vec4i> lines;
+	HoughLinesP(bin, lines, 1, CV_PI / 180, 200, 50, 10);
+	for (size_t i = 0; i < lines.size(); i++){
+		Vec4i li = lines[i];
+		if ((abs(li[0] - li[2]) < 20) || (abs(li[1] - li[3]) < 20)){
+			line(m, Point(li[0], li[1]), Point(li[2], li[3]), Scalar(255, 0, 0), 1, LINE_AA);
+		}
+	}
+	imshow("dstimg", m);
+	waitKey();
 }
 
 int findCard(Mat &m){
