@@ -11,8 +11,7 @@ using namespace cv::ml;
 
 void train_pixel(); //train the knn model for classifying.
 int splitCard(Mat &m, int i, string num_, string flag_); //split the card to detect the number and flag.
-int findCardLine(Mat &m);
-int findCard(Mat &m); //find the card region which read from camera.
+bool findCardLine(Mat &m); //find the card region which read from camera.
 int predictNum(Mat &m); //predict the num of card.
 int predictFlag(Mat &m); //predict the flag of card.
 /**
@@ -33,13 +32,14 @@ void scan(int &suit, int &rank){
 	int a[4],b[4];
 	while (i){
 		Mat m;
+		waitKey(1);
 		capture >> m;
 		//----------从单张图像找出数字和花色，比如从摄像头采集的图像---------------------
-		int flag = findCard(m);
-		if (flag == 0){
-			Mat m = imread("card.jpg", 0);
+		bool flag = findCardLine(m);
+		if (flag){
+			Mat m = imread("card.jpg",0);
 			int result = splitCard(m, 1, "num", "flag");
-			if (result == 0){
+			if (result==0){
 				//cout << "截取成功，按任意键进行预测，ctrl-c 退出..." << endl;
 				//waitKey();
 				Mat flag = imread("flag.jpg", 0);
@@ -117,59 +117,76 @@ void train_pixel()
 	FlagModel->save("./flag_knn_pixel.yml");
 }
 
-int findCardLine(Mat &m){
-	Mat gray,bin;
-	cvtColor(m, gray, COLOR_BGR2GRAY);
-	imshow("gray", gray);
-	//################################################
-	threshold(gray, bin, 80, 255, THRESH_BINARY);  //---对光照和环境要求较高，阈值设置合适值-----------------
-	//################################################
+bool findCardLine(Mat &m){
+	Mat gray, bin,tmp;
+	m.copyTo(tmp);
+	Canny(m, bin, 50, 200, 3);
+	//imshow("bin", bin);
+	Point p1 = Point(1000, 1000);
+	Point p2 = Point(1000, 1000);
+	Point p3 = Point(1000, 1000);
+	Point p4 = Point(1000, 1000);
+	Vec4i li, tmp1, tmp2;
 	vector<Vec4i> lines;
-	HoughLinesP(bin, lines, 1, CV_PI / 180, 200, 50, 10);
-	for (size_t i = 0; i < lines.size(); i++){
-		Vec4i li = lines[i];
-		if ((abs(li[0] - li[2]) < 20) || (abs(li[1] - li[3]) < 20)){
-			line(m, Point(li[0], li[1]), Point(li[2], li[3]), Scalar(255, 0, 0), 1, LINE_AA);
+	HoughLinesP(bin, lines, 1, CV_PI / 180, 100, 50, 10);
+	for (int i = 0; i < lines.size(); i++){
+		li = lines[i];
+		if ((li[0] < p1.x) && (abs(li[1] - li[3])>100)){
+			tmp1 = li;
+			p1.x = li[0]; p1.y = li[1];
+			p2.x = li[2]; p2.y = li[3];
+		}
+		if ((li[1] < p3.y) && (abs(li[0] - li[2])>100) && (abs(li[1] - li[3]) < 100)){
+			tmp2 = li;
+			p3.x = li[0]; p3.y = li[1];
+			p4.x = li[2]; p4.y = li[3];
 		}
 	}
-	imshow("dstimg", m);
-	waitKey();
-}
-
-int findCard(Mat &m){
-	Mat gray, bin;
-	cvtColor(m, gray, COLOR_BGR2GRAY);
-	imshow("gray", gray);
-	//################################################
-	threshold(gray, bin, 80, 255, THRESH_BINARY);  //---对光照和环境要求较高，阈值设置合适值-----------------
-	//################################################
-	vector<vector<Point>> contours;
-	vector<Vec4i> hierarchy;
-	findContours(bin, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-	vector<vector<Point>>::iterator It;
-	//-------------------找出最外层轮廓，即扑克牌的轮廓--------------------------------
-	int up = 2000, down = 0, right = 0, left = 2000;
-	for (It = contours.begin(); It < contours.end(); It++){
-		Rect rect = boundingRect(*It);
-		Point tl = rect.tl();
-		Point br = rect.br();
-		if (up>tl.y) up = tl.y;
-		if (down < br.y) down = br.y;
-		if (left>tl.x) left = tl.x;
-		if (right < br.x) right = br.x;
+	line(m, Point(tmp1[0], tmp1[1]), Point(tmp1[2], tmp1[3]), Scalar(255, 0, 0), 4, LINE_AA);
+	line(m, Point(tmp2[0], tmp2[1]), Point(tmp2[2], tmp2[3]), Scalar(0, 255, 0), 4, LINE_AA);
+	double angle = abs(p1.x - p2.x) < 1 ? 0.0 : -((double)(p1.x - p2.x) / (p1.y - p2.y)) * 180 / CV_PI;
+	Mat rotMat(2,3,CV_32FC1), dst,save;
+	rotMat= getRotationMatrix2D(Point(tmp.rows/2,tmp.cols/2), angle, 1);
+	warpAffine(tmp, dst, rotMat, tmp.size());
+	warpAffine(bin, save, rotMat, bin.size());
+	//----------------------------------
+	p1 = Point(1000, 1000);
+	p2 = Point(1000, 1000);
+	p3 = Point(1000, 1000);
+	p4 = Point(1000, 1000);
+	HoughLinesP(save, lines, 1, CV_PI / 180, 100, 50, 10);
+	for (int i = 0; i < lines.size(); i++){
+		li = lines[i];
+		if ((li[0] < p1.x) && (abs(li[1] - li[3])>100)){
+			tmp1 = li;
+			p1.x = li[0]; p1.y = li[1];
+			p2.x = li[2]; p2.y = li[3];
+		}
+		if ((li[1] < p3.y) && (abs(li[0] - li[2])>100) && (abs(li[1] - li[3])<100)){
+			tmp2 = li;
+			p3.x = li[0]; p3.y = li[1];
+			p4.x = li[2]; p4.y = li[3];
+		}
 	}
-	if (up == 2000 || left == 2000) return -1;
-	Mat card;
-	card = gray(Range(up + 10, down), Range(left + 2, right)); //切割掉左上角一定区域的背景，便于定位数字和花色
+	Mat s = dst(Rect(tmp1[0],tmp2[1],dst.cols-tmp1[0],dst.rows-tmp2[1]));
+	//------------------------------------
+	imshow("src", m);
+	imshow("dst", dst);
+	Mat card,a;
+	cvtColor(s, a, COLOR_BGR2GRAY);
+	if (a.rows > 15 && a.cols > 10)
+		card = a(Range(15, a.rows), Range(10, a.cols));
+	else
+		return 0;
 	//----------漫水填充，去掉扑克牌外面的黑色像素，只留下黑色的数字、花色以及白色背景------------------
 	threshold(card, card, 150, 255, THRESH_BINARY); //注意阈值选取
 	floodFill(card, Point(0, 0), Scalar(255, 255, 255));
 	floodFill(card, Point(0, card.rows - 1), Scalar(255, 255, 255));
 	floodFill(card, Point(card.cols - 1, 0), Scalar(255, 255, 255));
 	floodFill(card, Point(card.cols - 1, card.rows - 1), Scalar(255, 255, 255));
+	imshow("card", card);
 	imwrite("card.jpg", card);
-	//imshow("card", card);
-	return 0;
+	return 1;
 }
 
 int splitCard(Mat &m, int i, string num_path, string flag_path){
