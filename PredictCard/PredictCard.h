@@ -179,7 +179,7 @@ bool findCardLine(Mat &m){
 	else
 		return 0;
 	//----------漫水填充，去掉扑克牌外面的黑色像素，只留下黑色的数字、花色以及白色背景------------------
-	threshold(card, card, 150, 255, THRESH_BINARY); //注意阈值选取
+	threshold(card, card, 250, 255, THRESH_BINARY); //注意阈值选取
 	floodFill(card, Point(0, 0), Scalar(255, 255, 255));
 	floodFill(card, Point(0, card.rows - 1), Scalar(255, 255, 255));
 	floodFill(card, Point(card.cols - 1, 0), Scalar(255, 255, 255));
